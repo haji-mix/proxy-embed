@@ -1,0 +1,23 @@
+{
+  'name': 'proxy-embed',
+  'version': '1.0.0',
+  'description': 'A simple Express proxy server using http-proxy-middleware',
+  'main': 'nega.js',
+  'scripts': {
+    'start': 'node nega.js'
+  },
+  'dependencies': {
+    'express': '^4.18.2',
+    'http-proxy-middleware': '^2.0.6'
+  },
+  'engines': {
+    'node': '>=14.0.0'
+  },
+  'keywords': [
+    'express',
+    'proxy',
+    'http-proxy-middleware'
+  ],
+  'author': '',
+  'license': 'MIT'
+}
