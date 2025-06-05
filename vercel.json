@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "nega.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/nega.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
