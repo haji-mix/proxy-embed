@@ -24,7 +24,7 @@ async function handleRequest(request) {
     url.port = '443';
 
     const newHeaders = new Headers(request.headers);
-    newHeaders.set('X-Forwarded-Host', request.headers.get('x-forwarded-host') || request.headers.get('host') || url.host);
+    newHeaders.set('x-forwarded-host', request.headers.get('x-forwarded-host') || request.headers.get('host') || url.host);
 
     const response = await fetch(url, {
       method: request.method,

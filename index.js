@@ -10,7 +10,7 @@ app.use(
     changeOrigin: true,
     pathRewrite: { '^/': '' },
     onProxyReq: (proxyReq, req) => {
-      proxyReq.setHeader('X-Forwarded-Host', req.get('host'));
+      proxyReq.setHeader('x-forwarded-host', req.get('host'));
     },
   })
 );
