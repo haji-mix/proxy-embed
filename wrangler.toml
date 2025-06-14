@@ -1,6 +1,13 @@
-name = "proxy" 
 compatibility_date = "2022-07-12"
 main = "./workers.js"
 
+[[unsafe.bindings]]
+name = "proxy"
+type = "ratelimit"
+
+namespace_id = "1234"
+
 workers_dev = true
+
+simple = { limit = 100, period = 60 }
 
