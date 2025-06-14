@@ -7,8 +7,11 @@ app.use(
   '/',
   createProxyMiddleware({
     target: 'https://proxy.lkpanio25.workers.dev',
-    changeOrigin: true, 
+    changeOrigin: true,
     pathRewrite: { '^/': '' },
+    onProxyReq: (proxyReq, req) => {
+      proxyReq.setHeader('X-Forwarded-Host', req.get('host'));
+    },
   })
 );
 
