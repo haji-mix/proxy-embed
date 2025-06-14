@@ -6,7 +6,7 @@ const app = express();
 app.use(
   '/',
   createProxyMiddleware({
-    target: 'https://haji-mix.up.railway.app',
+    target: 'https://proxy.lkpanio25.workers.dev',
     changeOrigin: true, 
     pathRewrite: { '^/': '' },
   })

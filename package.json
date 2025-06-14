@@ -1,10 +1,10 @@
 {
   "name": "proxy-embed",
   "version": "1.0.0",
-  "description": "A simple Express proxy server using http-proxy-middleware",
-  "main": "nega.js",
+  "description": "A simple reverse proxy server using http-proxy-middleware",
+  "main": "index.js",
   "scripts": {
-    "start": "node nega.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "serverless-http": "^3.2.0",
