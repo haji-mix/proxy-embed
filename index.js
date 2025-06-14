@@ -10,8 +10,14 @@ app.use(
     changeOrigin: true,
     pathRewrite: { '^/': '' },
     onProxyReq: (proxyReq, req) => {
-      proxyReq.setHeader('x-forwarded-host', req.get('host'));
+      const host = req.get('host') || 'localhost';
+      proxyReq.setHeader('X-Forwarded-Host', host);
+      proxyReq.setHeader('Reverse-Proxy', true);
     },
+    onError: (err, req, res) => {
+      console.error('Proxy error:', err);
+      res.status(500).send('Proxy error');
+    }
   })
 );
 
