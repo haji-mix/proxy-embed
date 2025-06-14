@@ -2,13 +2,8 @@ name = "proxy-embed"
 compatibility_date = "2022-07-12"
 main = "workers.js"
 
-[vars]
-WORKERS_DEV = true
-
 [[unsafe.bindings]]
 name = "ratelimit"
 type = "ratelimit"
 namespace_id = "1234"
-[unsafe.bindings.simple]
-limit = 100
-period = 60
+simple = { limit = 100, period = 60 }
