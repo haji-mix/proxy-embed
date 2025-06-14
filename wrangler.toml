@@ -1,2 +1,6 @@
-name = "proxy-embed"
+name = "proxy" 
+compatibility_date = "2025-06-15"
 main = "./workers.js"
+
+workers_dev = true
+
