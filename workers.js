@@ -20,13 +20,17 @@ async function handleRequest(request) {
 
     const url = new URL(request.url);
     url.hostname = 'haji-mix.up.railway.app';
-    url.protocol = 'https:'; 
-    url.port = '443'; 
+    url.protocol = 'https:';
+    url.port = '443';
+
+    const newHeaders = new Headers(request.headers);
+    newHeaders.set('X-Forwarded-Host', url.host);
+
     const response = await fetch(url, {
       method: request.method,
-      headers: request.headers,
+      headers: newHeaders,
       body: request.body,
-      cf: { cacheTtl: 0 } 
+      cf: { cacheTtl: 0 },
     });
 
     if (!response.ok) {
@@ -34,7 +38,7 @@ async function handleRequest(request) {
     }
 
     const newResponse = new Response(response.body, response);
-    newResponse.headers.set('Access-Control-Allow-Origin', '*'); 
+    newResponse.headers.set('Access-Control-Allow-Origin', '*');
     return newResponse;
 
   } catch (error) {
@@ -46,7 +50,7 @@ const rateLimitStore = new Map();
 async function isRateLimited(ip) {
   const now = Date.now();
   const windowMs = 60 * 1000;
-  const maxRequests = 100; 
+  const maxRequests = 100;
 
   let record = rateLimitStore.get(ip) || { count: 0, timestamp: now };
   if (now - record.timestamp > windowMs) {
