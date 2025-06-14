@@ -1,8 +1,9 @@
+name = "proxy-embed"
 compatibility_date = "2022-07-12"
 main = "./workers.js"
 
 [[unsafe.bindings]]
-name = "proxy"
+name = "ratelimit"
 type = "ratelimit"
 
 namespace_id = "1234"
