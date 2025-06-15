@@ -50,9 +50,7 @@ async function handleRequest(request) {
       body: request.body,
       cf: { cacheTtl: 0 }
     });
-    if (!response.ok) {
-      return new Response('Error fetching from target server', { status: 502 });
-    }
+
     const newResponse = new Response(response.body, response);
     newResponse.headers.set('Access-Control-Allow-Origin', '*');
     return newResponse;
