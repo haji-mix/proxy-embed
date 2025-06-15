@@ -11,25 +11,19 @@ const urlMap = new Map();
  */
 function getBaseUrl(request) {
   const url = new URL(request.url);
-  // 1. Protocol detection (supports proxies, HTTPS, and fallbacks)
   const protocol =
     request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() ||
     url.protocol.replace(':', '') ||
     'http';
-
-  // 2. Host extraction (prioritizes proxy headers)
   const host =
     request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
     request.headers.get('host') ||
     url.host ||
     'localhost';
-
-  // 3. Clean duplicate ports while preserving intentional ports
   const sanitizedHost = host.replace(/(:\d+)+$/, match => {
     const parts = match.split(':');
     return parts.length > 2 ? `:${parts.pop()}` : match;
   });
-
   return `${protocol}://${sanitizedHost}`;
 }
 
@@ -66,6 +60,20 @@ async function isRateLimited(ip) {
   return record.count > maxRequests;
 }
 
+/**
+ * Validates if a URL is a valid HTTP/HTTPS URL
+ * @param {string} urlString - URL to validate
+ * @returns {boolean} True if valid, false otherwise
+ */
+function isValidHttpUrl(urlString) {
+  try {
+    const url = new URL(urlString);
+    return ['http:', 'https:'].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
 async function handleRequest(request) {
   try {
     const userAgent = request.headers.get('user-agent') || '';
@@ -89,7 +97,10 @@ async function handleRequest(request) {
       if (!target) {
         return new Response('Missing target URL', { status: 400 });
       }
-      const uid = generateNumericUID(); // e.g., 4821-9302-1745
+      if (!isValidHttpUrl(target)) {
+        return new Response('Invalid target URL: Must be a valid HTTP/HTTPS URL', { status: 400 });
+      }
+      const uid = generateNumericUID();
       urlMap.set(uid, target);
       const baseUrl = getBaseUrl(request);
       return new Response(JSON.stringify({ proxy_url: `${baseUrl}/${uid}` }), {
@@ -101,20 +112,34 @@ async function handleRequest(request) {
     // If path is /<uid>, proxy to mapped URL
     if (pathParts.length === 1 && urlMap.has(pathParts[0])) {
       const targetUrl = urlMap.get(pathParts[0]);
-      const target = new URL(targetUrl);
-      target.search = url.search;
+      let target;
+      try {
+        target = new URL(targetUrl);
+        target.search = url.search;
+      } catch (error) {
+        return new Response(`Invalid target URL stored for UID: ${error.message}`, { status: 400 });
+      }
       const newHeaders = new Headers(request.headers);
       newHeaders.set('x-forwarded-host', request.headers.get('x-forwarded-host') || request.headers.get('host') || target.host);
       newHeaders.set('workers-proxy', 'true');
-      const response = await fetch(target, {
-        method: request.method,
-        headers: newHeaders,
-        body: request.body,
-        cf: { cacheTtl: 0 }
-      });
-      const newResponse = new Response(response.body, response);
-      newResponse.headers.set('Access-Control-Allow-Origin', '*');
-      return newResponse;
+      // Remove headers that might interfere with the target server
+      newHeaders.delete('host');
+      try {
+        const response = await fetch(target, {
+          method: request.method,
+          headers: newHeaders,
+          body: request.body,
+          cf: { cacheTtl: 0 }
+        });
+        if (!response.ok) {
+          return new Response(`Error fetching from target server: ${response.status} ${response.statusText}`, { status: 502 });
+        }
+        const newResponse = new Response(response.body, response);
+        newResponse.headers.set('Access-Control-Allow-Origin', '*');
+        return newResponse;
+      } catch (error) {
+        return new Response(`Fetch error: ${error.message}`, { status: 502 });
+      }
     }
 
     // Default: proxy to haji-mix
@@ -124,20 +149,25 @@ async function handleRequest(request) {
     const newHeaders = new Headers(request.headers);
     newHeaders.set('x-forwarded-host', request.headers.get('x-forwarded-host') || request.headers.get('host') || url.host);
     newHeaders.set('workers-proxy', 'true');
-    const response = await fetch(url, {
-      method: request.method,
-      headers: newHeaders,
-      body: request.body,
-      cf: { cacheTtl: 0 }
-    });
-    if (!response.ok) {
-      return new Response('Error fetching from target server', { status: 502 });
+    newHeaders.delete('host');
+    try {
+      const response = await fetch(url, {
+        method: request.method,
+        headers: newHeaders,
+        body: request.body,
+        cf: { cacheTtl: 0 }
+      });
+      if (!response.ok) {
+        return new Response(`Error fetching from default server: ${response.status} ${response.statusText}`, { status: 502 });
+      }
+      const newResponse = new Response(response.body, response);
+      newResponse.headers.set('Access-Control-Allow-Origin', '*');
+      return newResponse;
+    } catch (error) {
+      return new Response(`Fetch error to default server: ${error.message}`, { status: 502 });
     }
-    const newResponse = new Response(response.body, response);
-    newResponse.headers.set('Access-Control-Allow-Origin', '*');
-    return newResponse;
 
   } catch (error) {
-    return new Response('Internal Server Error', { status: 500 });
+    return new Response(`Internal Server Error: ${error.message}`, { status: 500 });
   }
 }
