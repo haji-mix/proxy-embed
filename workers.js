@@ -122,7 +122,6 @@ async function handleRequest(request) {
       const newHeaders = new Headers(request.headers);
       newHeaders.set('x-forwarded-host', request.headers.get('x-forwarded-host') || request.headers.get('host') || target.host);
       newHeaders.set('workers-proxy', 'true');
-      // Remove headers that might interfere with the target server
       newHeaders.delete('host');
       try {
         const response = await fetch(target, {
@@ -142,30 +141,35 @@ async function handleRequest(request) {
       }
     }
 
-    // Default: proxy to haji-mix
-    url.hostname = 'haji-mix.up.railway.app';
-    url.protocol = 'https:';
-    url.port = '443';
-    const newHeaders = new Headers(request.headers);
-    newHeaders.set('x-forwarded-host', request.headers.get('x-forwarded-host') || request.headers.get('host') || url.host);
-    newHeaders.set('workers-proxy', 'true');
-    newHeaders.delete('host');
-    try {
-      const response = await fetch(url, {
-        method: request.method,
-        headers: newHeaders,
-        body: request.body,
-        cf: { cacheTtl: 0 }
-      });
-      if (!response.ok) {
-        return new Response(`Error fetching from default server: ${response.status} ${response.statusText}`, { status: 502 });
+    // Default: proxy to haji-mix only for root path
+    if (url.pathname === '/' || url.pathname === '') {
+      url.hostname = 'haji-mix.up.railway.app';
+      url.protocol = 'https:';
+      url.port = '443';
+      const newHeaders = new Headers(request.headers);
+      newHeaders.set('x-forwarded-host', request.headers.get('x-forwarded-host') || request.headers.get('host') || url.host);
+      newHeaders.set('workers-proxy', 'true');
+      newHeaders.delete('host');
+      try {
+        const response = await fetch(url, {
+          method: request.method,
+          headers: newHeaders,
+          body: request.body,
+          cf: { cacheTtl: 0 }
+        });
+        if (!response.ok) {
+          return new Response(`Error fetching from default server (${url.toString()}): ${response.status} ${response.statusText}`, { status: 502 });
+        }
+        const newResponse = new Response(response.body, response);
+        newResponse.headers.set('Access-Control-Allow-Origin', '*');
+        return newResponse;
+      } catch (error) {
+        return new Response(`Fetch error to default server (${url.toString()}): ${error.message}`, { status: 502 });
       }
-      const newResponse = new Response(response.body, response);
-      newResponse.headers.set('Access-Control-Allow-Origin', '*');
-      return newResponse;
-    } catch (error) {
-      return new Response(`Fetch error to default server: ${error.message}`, { status: 502 });
     }
+
+    // Return 404 for unmatched paths
+    return new Response('Not Found', { status: 404 });
 
   } catch (error) {
     return new Response(`Internal Server Error: ${error.message}`, { status: 500 });
