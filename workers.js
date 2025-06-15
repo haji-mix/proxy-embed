@@ -55,19 +55,21 @@ async function handleRequest(request) {
     const url = new URL(request.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
 
-    if (url.pathname === '/create' && request.method === 'POST') {
-      const body = await request.json();
-      if (!body.target) {
+    // Endpoint to create a new tunnel via GET
+    if (url.pathname === '/proxy' && request.method === 'GET') {
+      const target = url.searchParams.get('target');
+      if (!target) {
         return new Response('Missing target URL', { status: 400 });
       }
-      const uid = generateNumericUID();
-      urlMap.set(uid, body.target);
+      const uid = generateNumericUID(); // e.g., 4821-9302-1745
+      urlMap.set(uid, target);
       return new Response(JSON.stringify({ uid, endpoint: `/${uid}` }), {
         status: 201,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
+    // If path is /<uid>, proxy to mapped URL
     if (pathParts.length === 1 && urlMap.has(pathParts[0])) {
       const targetUrl = urlMap.get(pathParts[0]);
       const target = new URL(targetUrl);
@@ -86,6 +88,7 @@ async function handleRequest(request) {
       return newResponse;
     }
 
+    // Default: proxy to haji-mix
     url.hostname = 'haji-mix.up.railway.app';
     url.protocol = 'https:';
     url.port = '443';
