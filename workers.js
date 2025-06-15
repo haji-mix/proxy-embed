@@ -40,7 +40,7 @@ async function handleRequest(request) {
 
     url.hostname = 'haji-mix.up.railway.app';
     url.protocol = 'https:';
-    url.port = '80';
+    url.port = '443';
     const newHeaders = new Headers(request.headers);
     newHeaders.set('x-forwarded-host', request.headers.get('X-Forwarded-Host'));
     newHeaders.delete('host');
