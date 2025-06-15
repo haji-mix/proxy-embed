@@ -40,10 +40,9 @@ async function handleRequest(request) {
 
     url.hostname = 'haji-mix.up.railway.app';
     url.protocol = 'https:';
-    url.port = '443';
+    url.port = '80';
     const newHeaders = new Headers(request.headers);
     newHeaders.set('x-forwarded-host', request.headers.get('X-Forwarded-Host'));
-    newHeaders.set('workers-proxy', true);
     newHeaders.delete('host');
     const response = await fetch(url, {
       method: request.method,
