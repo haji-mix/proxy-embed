@@ -9,7 +9,7 @@ function getBaseUrl(request) {
   const url = new URL(request.url);
   const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || 
                    url.protocol.slice(0, -1) || 
-                   'http';
+                   'https';
   const host = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || 
                request.headers.get('host') || 
                url.host;
@@ -59,7 +59,6 @@ async function proxyRequest(request, targetBaseUrl, requestUrl) {
     const target = new URL(targetBaseUrl);
     const originalUrl = new URL(requestUrl);
     
-    // Preserve path and query parameters
     target.pathname = originalUrl.pathname;
     originalUrl.searchParams.forEach((value, key) => {
       target.searchParams.append(key, value);
@@ -91,7 +90,6 @@ async function proxyRequest(request, targetBaseUrl, requestUrl) {
 
 async function handleRequest(request) {
   try {
-    // Security checks
     const userAgent = request.headers.get('user-agent') || '';
     if (/bot|crawler|spider/i.test(userAgent)) {
       return new Response('Access denied', { status: 403 });
@@ -111,13 +109,13 @@ async function handleRequest(request) {
       if (!isValidHttpUrl(target)) return new Response('Invalid URL', { status: 400 });
       
       const uid = generateNumericUID();
-      urlMap.set(uid, target.endsWith('/') ? target.slice(0, -1) : target);
+      urlMap.set(uid, target.replace(/\/$/, ''));
       
       return new Response(JSON.stringify({ 
         proxy_url: `${getBaseUrl(request)}/${uid}`,
         original_url: target
       }), {
-        status: 201,
+        status: 200,
         headers: { 
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
@@ -125,16 +123,19 @@ async function handleRequest(request) {
       });
     }
     
-    if (pathParts.length >= 1 && urlMap.has(pathParts[0])) {
-      const targetBase = urlMap.get(pathParts[0]);
-      return proxyRequest(request, targetBase, request.url);
+    
+    if (pathParts.length >= 1) {
+      const uid = pathParts[0];
+      if (urlMap.has(uid)) {
+        const targetBase = urlMap.get(uid);
+
+        const targetUrl = targetBase + url.pathname.slice(uid.length + 1) + url.search;
+        return proxyRequest(request, targetUrl, request.url);
+      }
     }
     
-    if (pathParts.length === 0) {
-      return proxyRequest(request, 'https://haji-mix.up.railway.app', request.url);
-    }
-    
-    return new Response('Not Found', { status: 404 });
+
+    return proxyRequest(request, 'https://haji-mix.up.railway.app', request.url);
     
   } catch (error) {
     return new Response(`Server Error: ${error.message}`, { status: 500 });
