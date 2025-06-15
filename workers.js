@@ -89,7 +89,7 @@ async function handleRequest(request) {
       const uid = pathParts[0];
       if (urlMap.has(uid)) {
         const targetBase = urlMap.get(uid);
-        const restOfPath = url.pathname.slice(uid.length + 1);
+        const restOfPath = url.pathname.split('/').slice(2).join('/');
         const targetUrl = new URL(restOfPath + url.search, targetBase).toString();
         return proxyRequest(request, targetUrl);
       }
