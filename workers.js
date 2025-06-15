@@ -1,9 +1,37 @@
-
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
 });
 
 const urlMap = new Map();
+
+/**
+ * Generates base URL from request object (works with domains, IPs, proxies, and ports)
+ * @param {Request} request - Cloudflare Workers request object
+ * @returns {string} Fully qualified base URL (e.g., "https://example.com:8080")
+ */
+function getBaseUrl(request) {
+  const url = new URL(request.url);
+  // 1. Protocol detection (supports proxies, HTTPS, and fallbacks)
+  const protocol =
+    request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() ||
+    url.protocol.replace(':', '') ||
+    'http';
+
+  // 2. Host extraction (prioritizes proxy headers)
+  const host =
+    request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
+    request.headers.get('host') ||
+    url.host ||
+    'localhost';
+
+  // 3. Clean duplicate ports while preserving intentional ports
+  const sanitizedHost = host.replace(/(:\d+)+$/, match => {
+    const parts = match.split(':');
+    return parts.length > 2 ? `:${parts.pop()}` : match;
+  });
+
+  return `${protocol}://${sanitizedHost}`;
+}
 
 function generateNumericUID(segmentLength = 4, segments = 3) {
   let uid = '';
@@ -22,7 +50,7 @@ const rateLimitStore = new Map();
 
 async function isRateLimited(ip) {
   const now = Date.now();
-  const windowMs = 60 * 1000;
+  const windowMs = 60 * 1000; // 1 minute
   const maxRequests = 100;
   let record = rateLimitStore.get(ip) || { count: 0, timestamp: now };
   if (now - record.timestamp > windowMs) {
@@ -63,7 +91,8 @@ async function handleRequest(request) {
       }
       const uid = generateNumericUID(); // e.g., 4821-9302-1745
       urlMap.set(uid, target);
-      return new Response(JSON.stringify({ uid, endpoint: `/${uid}` }), {
+      const baseUrl = getBaseUrl(request);
+      return new Response(JSON.stringify({ proxy_url: `${baseUrl}/${uid}` }), {
         status: 201,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -75,8 +104,8 @@ async function handleRequest(request) {
       const target = new URL(targetUrl);
       target.search = url.search;
       const newHeaders = new Headers(request.headers);
-      newHeaders.set('x-forwarded-host', request.headers.get('X-Forwarded-Host') || request.headers.get('host') || target.host);
-      newHeaders.set('workers-proxy', true);
+      newHeaders.set('x-forwarded-host', request.headers.get('x-forwarded-host') || request.headers.get('host') || target.host);
+      newHeaders.set('workers-proxy', 'true');
       const response = await fetch(target, {
         method: request.method,
         headers: newHeaders,
@@ -93,8 +122,8 @@ async function handleRequest(request) {
     url.protocol = 'https:';
     url.port = '443';
     const newHeaders = new Headers(request.headers);
-    newHeaders.set('x-forwarded-host', request.headers.get('X-Forwarded-Host') || request.headers.get('host') || url.host);
-    newHeaders.set('workers-proxy', true);
+    newHeaders.set('x-forwarded-host', request.headers.get('x-forwarded-host') || request.headers.get('host') || url.host);
+    newHeaders.set('workers-proxy', 'true');
     const response = await fetch(url, {
       method: request.method,
       headers: newHeaders,
