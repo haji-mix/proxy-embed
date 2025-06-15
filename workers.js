@@ -15,12 +15,13 @@ async function handleRequest(request) {
     const url = new URL(request.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
 
+    // [1] PROXY CREATION ENDPOINT
     if (pathParts[0] === 'proxy' && request.method === 'GET') {
       const target = url.searchParams.get('url');
       if (!target) return new Response('Missing target URL', {status: 400});
       
       const uid = generateUID();
-      urlMap.set(uid, target);
+      urlMap.set(uid, target); // Store mapping
       
       return new Response(JSON.stringify({
         proxy_url: `${url.origin}/${uid}`,
@@ -30,11 +31,16 @@ async function handleRequest(request) {
       });
     }
 
+    // [2] HANDLE PROXIED REQUESTS (UID paths)
     if (pathParts.length > 0 && urlMap.has(pathParts[0])) {
-      const target = new URL(urlMap.get(pathParts[0]));
+      const targetBase = urlMap.get(pathParts[0]);
+      const target = new URL(targetBase);
+      
+      // Reconstruct full target URL
       target.pathname = `${target.pathname}/${pathParts.slice(1).join('/')}`.replace(/\/+/g, '/');
       target.search = url.search;
       
+      // Modify headers for proxy
       const headers = new Headers(request.headers);
       headers.set('x-forwarded-host', target.host);
       headers.delete('host');
@@ -47,6 +53,7 @@ async function handleRequest(request) {
       });
     }
 
+    // [3] EVERYTHING ELSE GOES TO HAJI-MIX
     return fetch(`https://haji-mix.up.railway.app${url.pathname}${url.search}`, {
       method: request.method,
       headers: request.headers,
