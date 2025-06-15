@@ -3,11 +3,9 @@ addEventListener('fetch', event => {
 });
 
 const urlMap = new Map(); // Stores: { uid: { target: string, expiresAt: number|null } }
-const rateLimitStore = new Map();
 
 function parseDuration(durationStr) {
-  if (!durationStr) return null;
-  if (durationStr.toLowerCase() === 'never') return null;
+  if (!durationStr || durationStr.toLowerCase() === 'never') return null;
   
   const match = durationStr.match(/^(\d+)\s*(sec|second|min|minute|hr|hour|day|week|month|year)s?$/i);
   if (!match) return null;
@@ -16,12 +14,9 @@ function parseDuration(durationStr) {
   const unit = match[2].toLowerCase();
   
   const multipliers = {
-    sec: 1000,
-    second: 1000,
-    min: 60 * 1000,
-    minute: 60 * 1000,
-    hr: 60 * 60 * 1000,
-    hour: 60 * 60 * 1000,
+    sec: 1000, second: 1000,
+    min: 60 * 1000, minute: 60 * 1000,
+    hr: 60 * 60 * 1000, hour: 60 * 60 * 1000,
     day: 24 * 60 * 60 * 1000,
     week: 7 * 24 * 60 * 60 * 1000,
     month: 30 * 24 * 60 * 60 * 1000,
@@ -33,39 +28,12 @@ function parseDuration(durationStr) {
 
 function getBaseUrl(request) {
   const url = new URL(request.url);
-  const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || 
-                   url.protocol.slice(0, -1) || 'https';
-  const host = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || 
-               request.headers.get('host') || url.host;
-  return `${protocol}://${host}`;
+  return `${url.protocol}//${url.host}`;
 }
 
 function generateNumericUID() {
   return Array.from({length: 3}, () => 
     Array.from({length: 4}, () => Math.floor(Math.random() * 10)).join('')).join('-');
-}
-
-async function isRateLimited(ip) {
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const maxRequests = 100;
-  
-  let record = rateLimitStore.get(ip) || { count: 0, timestamp: now };
-  
-  if (now - record.timestamp > windowMs) {
-    record = { count: 0, timestamp: now };
-  }
-  
-  record.count++;
-  rateLimitStore.set(ip, record);
-  
-  if (rateLimitStore.size > 10000) {
-    for (const [key, value] of rateLimitStore) {
-      if (now - value.timestamp > windowMs) rateLimitStore.delete(key);
-    }
-  }
-  
-  return record.count > maxRequests;
 }
 
 function isValidHttpUrl(urlString) {
@@ -77,34 +45,37 @@ function isValidHttpUrl(urlString) {
   }
 }
 
-async function proxyRequest(request, targetBaseUrl, requestUrl) {
+async function proxyRequest(request, targetUrl, pathToAppend = '') {
   try {
-    const target = new URL(targetBaseUrl);
-    const originalUrl = new URL(requestUrl);
+    const target = new URL(targetUrl);
     
-    target.pathname = originalUrl.pathname.replace(/^\/[^\/]+/, '') || '/';
-    originalUrl.searchParams.forEach((value, key) => {
-      target.searchParams.append(key, value);
+    // Handle path joining correctly
+    if (pathToAppend) {
+      const cleanPath = pathToAppend.startsWith('/') ? pathToAppend.slice(1) : pathToAppend;
+      target.pathname = target.pathname.endsWith('/') 
+        ? target.pathname + cleanPath
+        : target.pathname + '/' + cleanPath;
+    }
+
+    // Preserve query parameters
+    const requestUrl = new URL(request.url);
+    requestUrl.searchParams.forEach((value, key) => {
+      target.searchParams.set(key, value);
     });
 
     const newHeaders = new Headers(request.headers);
     newHeaders.set('x-forwarded-host', target.host);
-    newHeaders.set('x-forwarded-for', request.headers.get('cf-connecting-ip') || 'unknown');
     newHeaders.delete('host');
-    
-    newHeaders.set('x-proxy-request-url', request.url);
-    newHeaders.set('x-proxy-target-url', target.toString());
     
     const response = await fetch(target.toString(), {
       method: request.method,
       headers: newHeaders,
-      body: request.body,
+      body: request.method === 'GET' ? null : request.body,
       redirect: 'follow'
     });
     
     const newResponse = new Response(response.body, response);
     newResponse.headers.set('Access-Control-Allow-Origin', '*');
-    newResponse.headers.set('Cache-Control', 'no-store');
     return newResponse;
   } catch (error) {
     return new Response(`Proxy error: ${error.message}`, { 
@@ -116,19 +87,10 @@ async function proxyRequest(request, targetBaseUrl, requestUrl) {
 
 async function handleRequest(request) {
   try {
-    const userAgent = request.headers.get('user-agent') || '';
-    if (/bot|crawler|spider/i.test(userAgent)) {
-      return new Response('Access denied', { status: 403 });
-    }
-    
-    const clientIP = request.headers.get('cf-connecting-ip') || 'unknown';
-    if (await isRateLimited(clientIP)) {
-      return new Response('DDOS SI TANGA!', { status: 403 });
-    }
-    
     const url = new URL(request.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
-    
+
+    // Proxy creation endpoint
     if (url.pathname === '/proxy' && request.method === 'GET') {
       const target = url.searchParams.get('url');
       if (!target) return new Response('Missing target URL', { status: 400 });
@@ -147,10 +109,11 @@ async function handleRequest(request) {
       const expiresAt = expiresMs !== null ? Date.now() + expiresMs : null;
       
       urlMap.set(uid, {
-        target: target.endsWith('/') ? target.slice(0, -1) : target,
+        target: target,
         expiresAt
       });
       
+      // Cleanup expired entries
       const now = Date.now();
       for (const [key, value] of urlMap) {
         if (value.expiresAt && value.expiresAt < now) {
@@ -159,37 +122,41 @@ async function handleRequest(request) {
       }
       
       return new Response(JSON.stringify({ 
-        status: 'success',
         proxy_url: `${getBaseUrl(request)}/${uid}`,
         original_url: target,
-        expires_at: expiresAt,
-        expires_human: expiresAt ? new Date(expiresAt).toISOString() : 'never',
-        duration: expiresParam
+        expires_at: expiresAt ? new Date(expiresAt).toISOString() : 'never'
       }), {
-        status: 201,
+        status: 200,
         headers: { 
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'no-store'
+          'Access-Control-Allow-Origin': '*'
         }
       });
     }
-    
-    if (pathParts.length >= 1 && urlMap.has(pathParts[0])) {
-      const proxyInfo = urlMap.get(pathParts[0]);
 
-      if (proxyInfo.expiresAt && proxyInfo.expiresAt < Date.now()) {
-        urlMap.delete(pathParts[0]);
-        return new Response('Proxy link has expired', { status: 410 });
+    // Handle proxy requests
+    if (pathParts.length >= 1) {
+      const uid = pathParts[0];
+      if (urlMap.has(uid)) {
+        const proxyInfo = urlMap.get(uid);
+        
+        // Check expiration
+        if (proxyInfo.expiresAt && proxyInfo.expiresAt < Date.now()) {
+          urlMap.delete(uid);
+          return new Response('Proxy link expired', { status: 410 });
+        }
+        
+        // Get the remaining path after the UID
+        const remainingPath = pathParts.slice(1).join('/');
+        return proxyRequest(request, proxyInfo.target, remainingPath);
       }
-      
-      return proxyRequest(request, proxyInfo.target, request.url);
     }
 
+    // Default proxy for root path
     if (pathParts.length === 0) {
-      return proxyRequest(request, 'https://haji-mix.up.railway.app', request.url);
+      return proxyRequest(request, 'https://haji-mix.up.railway.app');
     }
-    
+
     return new Response('Not Found', { status: 404 });
     
   } catch (error) {
