@@ -2,66 +2,63 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
 });
 
-const urlMap = new Map();
+const rateLimitStore = new Map();
 
-function generateUID() {
-  return Array.from({length: 16}, () => 
-    Math.floor(Math.random() * 16).toString(16)
-  ).join('');
+async function isRateLimited(ip) {
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxRequests = 100;
+  let record = rateLimitStore.get(ip) || { count: 0, timestamp: now };
+  if (now - record.timestamp > windowMs) {
+    record = { count: 0, timestamp: now };
+  }
+  record.count++;
+  rateLimitStore.set(ip, record);
+  if (rateLimitStore.size > 10000) {
+    for (const [key, value] of rateLimitStore) {
+      if (now - value.timestamp > windowMs) rateLimitStore.delete(key);
+    }
+  }
+  return record.count > maxRequests;
 }
 
 async function handleRequest(request) {
   try {
+    const userAgent = request.headers.get('user-agent') || '';
+    if (!userAgent || /bot|crawler|spider/i.test(userAgent)) {
+      return new Response('Bot detected', { status: 403 });
+    }
+    const clientIP = request.headers.get('cf-connecting-ip') || 'unknown';
+    if (await isRateLimited(clientIP)) {
+      return new Response('Hina ng ddos mo tanga!', { status: 403 });
+    }
+    if (!['GET', 'POST'].includes(request.method)) {
+      return new Response('Method not allowed', { status: 405 });
+    }
+
     const url = new URL(request.url);
-    const pathParts = url.pathname.split('/').filter(Boolean);
 
-    // [1] PROXY CREATION ENDPOINT
-    if (pathParts[0] === 'proxy' && request.method === 'GET') {
-      const target = url.searchParams.get('url');
-      if (!target) return new Response('Missing target URL', {status: 400});
-      
-      const uid = generateUID();
-      urlMap.set(uid, target); // Store mapping
-      
-      return new Response(JSON.stringify({
-        proxy_url: `${url.origin}/${uid}`,
-        original_url: target
-      }), {
-        headers: {'Content-Type': 'application/json'}
-      });
-    }
-
-    // [2] HANDLE PROXIED REQUESTS (UID paths)
-    if (pathParts.length > 0 && urlMap.has(pathParts[0])) {
-      const targetBase = urlMap.get(pathParts[0]);
-      const target = new URL(targetBase);
-      
-      // Reconstruct full target URL
-      target.pathname = `${target.pathname}/${pathParts.slice(1).join('/')}`.replace(/\/+/g, '/');
-      target.search = url.search;
-      
-      // Modify headers for proxy
-      const headers = new Headers(request.headers);
-      headers.set('x-forwarded-host', target.host);
-      headers.delete('host');
-      
-      return fetch(target.toString(), {
-        method: request.method,
-        headers: headers,
-        body: request.body,
-        redirect: 'follow'
-      });
-    }
-
-    // [3] EVERYTHING ELSE GOES TO HAJI-MIX
-    return fetch(`https://haji-mix.up.railway.app${url.pathname}${url.search}`, {
+    url.hostname = 'haji-mix.up.railway.app';
+    url.protocol = 'https:';
+    url.port = '443';
+    const newHeaders = new Headers(request.headers);
+    newHeaders.set('x-forwarded-host', request.headers.get('X-Forwarded-Host'));
+    newHeaders.set('workers-proxy', true);
+    newHeaders.delete('host');
+    const response = await fetch(url, {
       method: request.method,
-      headers: request.headers,
+      headers: newHeaders,
       body: request.body,
-      redirect: 'follow'
+      cf: { cacheTtl: 0 }
     });
+    if (!response.ok) {
+      return new Response('Error fetching from target server', { status: 502 });
+    }
+    const newResponse = new Response(response.body, response);
+    newResponse.headers.set('Access-Control-Allow-Origin', '*');
+    return newResponse;
 
   } catch (error) {
-    return new Response(`Server error: ${error.message}`, {status: 500});
+    return new Response('Internal Server Error', { status: 500 });
   }
 }
