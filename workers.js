@@ -57,7 +57,7 @@ async function handleRequest(request) {
 
     // Endpoint to create a new tunnel via GET
     if (url.pathname === '/proxy' && request.method === 'GET') {
-      const target = url.searchParams.get('target');
+      const target = url.searchParams.get('url');
       if (!target) {
         return new Response('Missing target URL', { status: 400 });
       }
