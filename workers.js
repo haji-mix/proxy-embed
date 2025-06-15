@@ -78,7 +78,8 @@ async function handleRequest(request) {
       if (!target) return new Response('Missing target URL', { status: 400 });
       if (!isValidHttpUrl(target)) return new Response('Invalid URL', { status: 400 });
       const uid = generateNumericUID();
-      urlMap.set(uid, target.replace(/\/$/, ''));
+      // Store the exact target URL including its path
+      urlMap.set(uid, target.endsWith('/') ? target.slice(0, -1) : target);
       return new Response(JSON.stringify({ 
         proxy_url: `${getBaseUrl(request)}/${uid}`,
         original_url: target
@@ -89,9 +90,15 @@ async function handleRequest(request) {
       const uid = pathParts[0];
       if (urlMap.has(uid)) {
         const targetBase = urlMap.get(uid);
-        const restOfPath = url.pathname.slice(uid.length + 1);
-        const targetUrl = new URL(restOfPath + url.search, targetBase).toString();
-        return proxyRequest(request, targetUrl);
+        // Get the full original target URL including its path
+        const targetUrlObj = new URL(targetBase);
+        // Append the additional path components after the UID
+        const additionalPath = pathParts.slice(1).join('/');
+        // Combine the paths correctly
+        targetUrlObj.pathname = `${targetUrlObj.pathname}/${additionalPath}`.replace(/\/+/g, '/');
+        // Add query parameters
+        targetUrlObj.search = url.search;
+        return proxyRequest(request, targetUrlObj.toString());
       }
     }
     
