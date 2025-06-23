@@ -16,12 +16,12 @@ async function handleRequest(request) {
     url.port = '443';
     const newHeaders = new Headers(request.headers);
     newHeaders.set('x-forwarded-host', request.headers.get('X-Forwarded-Host'));
-    // Forward the real client IP
-    const realIp = request.headers.get('cf-connecting-ip');
-    if (realIp) {
-      newHeaders.set('x-forwarded-for', realIp);
-      newHeaders.set('cf-connecting-ip', realIp);
-    }
+    // Append the real client IP to the X-Forwarded-For chain
+    const existing = request.headers['x-forwarded-for'];
+    const remote = request.headers['cf-connecting-ip'] || request.connection.remoteAddress;
+    const realIp = existing ? `${existing}, ${remote}` : remote;
+    newHeaders.set('x-forwarded-for', realIp);
+    newHeaders.set('cf-connecting-ip', remote);
     newHeaders.delete('host');
     const response = await fetch(url, {
       method: request.method,

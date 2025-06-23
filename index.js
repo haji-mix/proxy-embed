@@ -12,8 +12,10 @@ app.use(
     onProxyReq: (proxyReq, req) => {
       const host = req.get('host') || 'localhost';
       proxyReq.setHeader('X-Forwarded-Host', host);
-      // Forward the real client IP
-      const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+      // Append the real client IP to the X-Forwarded-For chain
+      const existing = req.headers['x-forwarded-for'];
+      const remote = req.connection.remoteAddress;
+      const realIp = existing ? `${existing}, ${remote}` : remote;
       proxyReq.setHeader('X-Forwarded-For', realIp);
     },
     onError: (err, req, res) => {
