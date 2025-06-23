@@ -11,7 +11,10 @@ app.use(
     pathRewrite: { '^/': '' },
     onProxyReq: (proxyReq, req) => {
       const host = req.get('host') || 'localhost';
-      proxyReq.setHeader('X-Forwarded-Host', host)
+      proxyReq.setHeader('X-Forwarded-Host', host);
+      // Forward the real client IP
+      const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+      proxyReq.setHeader('X-Forwarded-For', realIp);
     },
     onError: (err, req, res) => {
       res.status(500).send('Proxy error');

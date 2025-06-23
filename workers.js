@@ -118,6 +118,12 @@ async function handleRequest(request) {
     url.port = '443';
     const newHeaders = new Headers(request.headers);
     newHeaders.set('x-forwarded-host', request.headers.get('X-Forwarded-Host'));
+    // Forward the real client IP
+    const realIp = request.headers.get('cf-connecting-ip');
+    if (realIp) {
+      newHeaders.set('x-forwarded-for', realIp);
+      newHeaders.set('cf-connecting-ip', realIp);
+    }
     newHeaders.delete('host');
     const response = await fetch(url, {
       method: request.method,
