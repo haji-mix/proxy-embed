@@ -2,39 +2,14 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
 });
 
-const rateLimitStore = new Map();
-
-async function isRateLimited(ip) {
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const maxRequests = 100;
-  let record = rateLimitStore.get(ip) || { count: 0, timestamp: now };
-  if (now - record.timestamp > windowMs) {
-    record = { count: 0, timestamp: now };
-  }
-  record.count++;
-  rateLimitStore.set(ip, record);
-  if (rateLimitStore.size > 10000) {
-    for (const [key, value] of rateLimitStore) {
-      if (now - value.timestamp > windowMs) rateLimitStore.delete(key);
-    }
-  }
-  return record.count > maxRequests;
-}
-
+// Simple proxy lang ito, tinatanggap lahat ng HTTP method at walang rate limit
 async function handleRequest(request) {
   try {
     const url = new URL(request.url);
-    // Only allow GET and POST
-    if (!['GET', 'POST'].includes(request.method)) {
-      return new Response('Method not allowed', { status: 405 });
-    }
+    // Tinatanggap lahat ng HTTP method
 
-    // Get client IP from cf-connecting-ip header
-    const clientIP = request.headers.get('cf-connecting-ip') || 'unknown';
-    if (await isRateLimited(clientIP)) {
-      return new Response('Rate limit exceeded', { status: 429 });
-    }
+    // Kunin ang IP mula sa cf-connecting-ip header (optional)
+    const clientIP = request.headers.get('cf-connecting-ip') || '';
 
     url.hostname = 'haji-mix.up.railway.app';
     url.protocol = 'https:';

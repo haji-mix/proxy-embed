@@ -12,9 +12,9 @@ app.use(
     onProxyReq: (proxyReq, req) => {
       const host = req.get("host") || "localhost";
       proxyReq.setHeader("X-Forwarded-Host", host);
-      // Forward the real client IP
-      const realIp =
-        req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+      // Kunin ang totoong IP ng client, gamitin ang unang IP kung marami sa x-forwarded-for
+      const forwardedFor = req.headers["x-forwarded-for"];
+      const realIp = forwardedFor ? forwardedFor.split(",")[0].trim() : req.ip;
       proxyReq.setHeader("X-Forwarded-For", realIp);
     },
     onError: (err, req, res) => {
