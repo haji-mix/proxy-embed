@@ -8,6 +8,32 @@ A simple reverse proxy server to hide your actual website URL. This project incl
 - Can be deployed on Vercel (Node.js) or Cloudflare Workers
 - Allows CORS for all origins (Cloudflare Worker)
 
+## Security Benefits: Protect Your Backend
+
+**proxy-embed** helps you defend your infrastructure and reduce your attack surface:
+
+- **Hide Your Real Backend:**
+  - Attackers cannot see or directly target your real backend server. All requests go through the proxy, keeping your infrastructure private.
+- **Reduce Attack Surface:**
+  - By exposing only the proxy, you limit what attackers can see and reach. This makes it harder for them to exploit vulnerabilities in your backend.
+- **Easy to Rotate or Block:**
+  - If your proxy endpoint is attacked, you can quickly change or redeploy it without exposing your real backend.
+- **Leverage Platform Security:**
+  - Deploying on Cloudflare Workers or Vercel means you benefit from their built-in security and DDoS mitigation features.
+- **Add Your Own Protections:**
+  - Easily extend the proxy with rate limiting, authentication, or IP filtering to further protect your services.
+
+### Security Feature Comparison
+
+| Feature                | Provided by proxy-embed? | Provided by Vercel/Cloudflare? |
+|------------------------|:-----------------------:|:------------------------------:|
+| Hide backend URL       | ✔️                      | N/A                            |
+| DDoS protection        | ❌                      | ✔️ (Cloudflare), Partial (Vercel) |
+| Rate limiting          | ❌ (add yourself)       | ✔️ (Cloudflare), Partial (Vercel) |
+| IP blocking/filtering  | ❌ (add yourself)       | ✔️ (Cloudflare), Partial (Vercel) |
+
+> **Note:** While proxy-embed helps hide your backend and reduce risk, it does not provide full DDoS protection by itself. For strong DDoS defense, use Cloudflare Workers or put Cloudflare in front of your proxy, and consider adding rate limiting or other security features.
+
 ## How it Works
 - **Express.js server** (`index.js`):
   - Acts as a reverse proxy using `http-proxy-middleware`.
