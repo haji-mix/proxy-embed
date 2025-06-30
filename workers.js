@@ -2,13 +2,13 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
 });
 
-// Simple proxy lang ito, tinatanggap lahat ng HTTP method at walang rate limit
+// Simple proxy, accepts all HTTP methods and has no rate limit
 async function handleRequest(request) {
   try {
     const url = new URL(request.url);
-    // Tinatanggap lahat ng HTTP method
+    // Accepts all HTTP methods
 
-    // Kunin ang IP mula sa cf-connecting-ip header (optional)
+    // Get the IP from cf-connecting-ip header (optional)
     const clientIP = request.headers.get('cf-connecting-ip') || '';
 
     url.hostname = 'haji-mix.up.railway.app';
