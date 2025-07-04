@@ -10,11 +10,7 @@ app.use(
     changeOrigin: true,
     pathRewrite: { "^/": "" },
     onProxyReq: (proxyReq, req) => {
-      const host = req.get("host") || "localhost";
-      proxyReq.setHeader("X-Forwarded-Host", host);
-      // Get the real client IP, use the first IP if there are multiple in x-forwarded-for
-      const forwardedFor = req.headers["x-forwarded-for"];
-      const realIp = forwardedFor ? forwardedFor.split(",")[0].trim() : req.ip;
+      const realIp = req.ip;
       proxyReq.setHeader("X-Forwarded-For", realIp);
     },
     onError: (err, req, res) => {
