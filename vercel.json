@@ -14,5 +14,11 @@
   ],
   "env": {
     "NODE_ENV": "production"
+  },
+  "functions": {
+    "api/edge.js": {
+      "runtime": "edge",
+      "maxDuration": 30
+    }
   }
 }
