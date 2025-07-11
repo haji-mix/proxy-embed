@@ -2,13 +2,10 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
 });
 
-// Simple proxy, accepts all HTTP methods and has no rate limit
 async function handleRequest(request) {
   try {
     const url = new URL(request.url);
-    // Accepts all HTTP methods
 
-    // Get the IP from cf-connecting-ip header (optional)
     const clientIP = request.headers.get('cf-connecting-ip') || '';
 
     url.hostname = 'haji-mix.up.railway.app';
