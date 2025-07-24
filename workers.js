@@ -25,7 +25,7 @@ async function handleRequest(request) {
     });
   }
 
-  let response = await tryFetch('haji-mix.up.railway.app');
+  let response = await tryFetch('haji-mix-api.onrender.com');
   if (!(response.status >= 200 && response.status < 300)) {
     response = await tryFetch('haji-mix-api.onrender.com');
   }
