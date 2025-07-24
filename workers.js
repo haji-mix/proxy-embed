@@ -14,31 +14,27 @@ async function handleRequest(request) {
     url.hostname = hostname;
     url.protocol = 'https:';
     url.port = '443';
-    const response = await fetch(url, {
+    return fetch(url, {
       method: request.method,
       headers: newHeaders,
       body: request.body,
       cf: { cacheTtl: 0 }
     });
-    return response;
   }
 
-  try {
-    let response = await tryFetch('haji-mix.up.railway.app');
-    if (!response.ok) {
-      response = await tryFetch('haji-mix-api.onrender.com');
-    }
-    const newResponse = new Response(response.body, response);
-    newResponse.headers.set('Access-Control-Allow-Origin', '*');
-    return newResponse;
-  } catch (error) {
-    try {
-      const response = await tryFetch('haji-mix-api.onrender.com');
-      const newResponse = new Response(response.body, response);
-      newResponse.headers.set('Access-Control-Allow-Origin', '*');
-      return newResponse;
-    } catch (e) {
-      return new Response('Internal Server Error', { status: 500 });
-    }
+  const fallbackStatus = [404, 502, 503];
+  let response = await tryFetch('haji-mix.up.railway.app');
+  if (fallbackStatus.includes(response.status)) {
+    response = await tryFetch('haji-mix-api.onrender.com');
   }
+  if (!fallbackStatus.includes(response.status)) {
+    const resHeaders = new Headers(response.headers);
+    resHeaders.set('Access-Control-Allow-Origin', '*');
+    return new Response(await response.arrayBuffer(), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: resHeaders
+    });
+  }
+  return new Response('Internal Server Error', { status: 500 });
 }
