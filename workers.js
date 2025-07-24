@@ -22,7 +22,7 @@ async function handleRequest(request) {
     });
   }
 
-  const fallbackStatus = [404, 502, 503];
+  const fallbackStatus = [502, 503, 301];
   let response = await tryFetch('haji-mix.up.railway.app');
   if (fallbackStatus.includes(response.status)) {
     response = await tryFetch('haji-mix-api.onrender.com');
