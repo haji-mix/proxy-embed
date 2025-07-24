@@ -22,19 +22,26 @@ async function handleRequest(request) {
     });
   }
 
-  const fallbackStatus = [502, 503, 301];
+  const fallbackStatus = [502, 503, 404];
   let response = await tryFetch('haji-mix.up.railway.app');
   if (fallbackStatus.includes(response.status)) {
-    response = await tryFetch('haji-mix-api.onrender.com');
+    const fallbackResponse = await tryFetch('haji-mix-api.onrender.com');
+    if (!fallbackStatus.includes(fallbackResponse.status)) {
+      const resHeaders = new Headers(fallbackResponse.headers);
+      resHeaders.set('Access-Control-Allow-Origin', '*');
+      return new Response(await fallbackResponse.arrayBuffer(), {
+        status: fallbackResponse.status,
+        statusText: fallbackResponse.statusText,
+        headers: resHeaders
+      });
+    }
+    return new Response('Internal Server Error', { status: 500 });
   }
-  if (!fallbackStatus.includes(response.status)) {
-    const resHeaders = new Headers(response.headers);
-    resHeaders.set('Access-Control-Allow-Origin', '*');
-    return new Response(await response.arrayBuffer(), {
-      status: response.status,
-      statusText: response.statusText,
-      headers: resHeaders
-    });
-  }
-  return new Response('Internal Server Error', { status: 500 });
+  const resHeaders = new Headers(response.headers);
+  resHeaders.set('Access-Control-Allow-Origin', '*');
+  return new Response(await response.arrayBuffer(), {
+    status: response.status,
+    statusText: response.statusText,
+    headers: resHeaders
+  });
 }
