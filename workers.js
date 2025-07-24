@@ -25,12 +25,11 @@ async function handleRequest(request) {
     });
   }
 
-  const fallbackStatus = [502, 503, 301];
   let response = await tryFetch('haji-mix.up.railway.app');
-  if (fallbackStatus.includes(response.status)) {
+  if (!(response.status >= 200 && response.status < 300)) {
     response = await tryFetch('haji-mix-api.onrender.com');
   }
-  if (!fallbackStatus.includes(response.status)) {
+  if (response.status >= 200 && response.status < 300) {
     const resHeaders = new Headers(response.headers);
     resHeaders.set('Access-Control-Allow-Origin', '*');
     return new Response(await response.arrayBuffer(), {
