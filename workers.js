@@ -5,9 +5,12 @@ addEventListener('fetch', event => {
 async function handleRequest(request) {
   const clientIP = request.headers.get('cf-connecting-ip') || '';
   const newHeaders = new Headers(request.headers);
-  newHeaders.set('x-forwarded-host', request.headers.get('X-Forwarded-Host'));
+  const forwardedHost = request.headers.get('X-Forwarded-Host');
+  if (forwardedHost) newHeaders.set('x-forwarded-host', forwardedHost);
   newHeaders.set('cf-connecting-ip', clientIP);
   newHeaders.delete('host');
+
+  const body = request.body ? await request.arrayBuffer() : undefined;
 
   async function tryFetch(hostname) {
     const url = new URL(request.url);
@@ -17,7 +20,7 @@ async function handleRequest(request) {
     return fetch(url, {
       method: request.method,
       headers: newHeaders,
-      body: request.body,
+      body,
       cf: { cacheTtl: 0 }
     });
   }
