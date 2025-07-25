@@ -26,16 +26,13 @@ async function handleRequest(request) {
   let response = await tryFetch('haji-mix.up.railway.app');
   if (fallbackStatus.includes(response.status)) {
     const fallbackResponse = await tryFetch('haji-mix-api.onrender.com');
-    if (!fallbackStatus.includes(fallbackResponse.status)) {
-      const resHeaders = new Headers(fallbackResponse.headers);
-      resHeaders.set('Access-Control-Allow-Origin', '*');
-      return new Response(await fallbackResponse.arrayBuffer(), {
-        status: fallbackResponse.status,
-        statusText: fallbackResponse.statusText,
-        headers: resHeaders
-      });
-    }
-    return new Response('Internal Server Error', { status: 500 });
+    const resHeaders = new Headers(fallbackResponse.headers);
+    resHeaders.set('Access-Control-Allow-Origin', '*');
+    return new Response(await fallbackResponse.arrayBuffer(), {
+      status: fallbackResponse.status,
+      statusText: fallbackResponse.statusText,
+      headers: resHeaders
+    });
   }
   const resHeaders = new Headers(response.headers);
   resHeaders.set('Access-Control-Allow-Origin', '*');
