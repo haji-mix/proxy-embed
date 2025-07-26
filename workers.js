@@ -22,7 +22,6 @@ async function handleRequest(request) {
     });
   }
 
-  // Always use the same host, no fallback
   const response = await tryFetch('haji-mix.up.railway.app');
   const resHeaders = new Headers(response.headers);
   resHeaders.set('Access-Control-Allow-Origin', '*');
