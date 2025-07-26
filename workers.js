@@ -3,9 +3,9 @@ addEventListener('fetch', event => {
 });
 
 async function handleRequest(request) {
-  const clientIP = request.headers.get('cf-connecting-ip') || '';
+  const clientIP = request.headers.get('cf-connecting-ip') || request.headers.get('X-Forwarded-Host') || '';
   const newHeaders = new Headers(request.headers);
-  newHeaders.set('x-forwarded-host', request.headers.get('X-Forwarded-Host'));
+  newHeaders.set('x-forwarded-host', clientIP);
   newHeaders.set('cf-connecting-ip', clientIP);
   newHeaders.delete('host');
 
@@ -22,18 +22,8 @@ async function handleRequest(request) {
     });
   }
 
-  const fallbackStatus = [502, 503, 404];
-  let response = await tryFetch('haji-mix.up.railway.app');
-  if (fallbackStatus.includes(response.status)) {
-    const fallbackResponse = await tryFetch('haji-mix-api.onrender.com');
-    const resHeaders = new Headers(fallbackResponse.headers);
-    resHeaders.set('Access-Control-Allow-Origin', '*');
-    return new Response(await fallbackResponse.arrayBuffer(), {
-      status: fallbackResponse.status,
-      statusText: fallbackResponse.statusText,
-      headers: resHeaders
-    });
-  }
+  // Always use the same host, no fallback
+  const response = await tryFetch('haji-mix.up.railway.app');
   const resHeaders = new Headers(response.headers);
   resHeaders.set('Access-Control-Allow-Origin', '*');
   return new Response(await response.arrayBuffer(), {
