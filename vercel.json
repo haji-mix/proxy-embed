@@ -2,10 +2,10 @@
   "version": 2,
   "functions": {
     "index.js": {
-      "runtime": "nodejs18.x"
+      "runtime": "@vercel/node@18"
     },
     "api/edge.js": {
-      "runtime": "edge",
+      "runtime": "@vercel/edge@1",
       "maxDuration": 30
     }
   },
