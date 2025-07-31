@@ -1,18 +1,14 @@
 {
   "version": 2,
   "functions": {
-    "index.js": {
-      "runtime": "@vercel/node@18"
-    },
     "api/edge.js": {
-      "runtime": "@vercel/edge@1",
-      "maxDuration": 30
+      "runtime": "edge"
     }
   },
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/index.js"
+      "dest": "/api/edge.js"
     }
   ],
   "env": {
