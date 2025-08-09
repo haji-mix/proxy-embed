@@ -7,18 +7,14 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "undici": "7.11.0",
     "serverless-http": "^3.2.0",
     "express": "^4.18.2",
     "http-proxy-middleware": "^2.0.6"
   },
-  "engines": {
-    "node": ">=14.0.0"
-  },
-  "keywords": [
-    "express",
-    "proxy",
-    "http-proxy-middleware"
-  ],
   "author": "Kenneth Panio",
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "undici": "7.11.0"
+  }
 }

@@ -1,14 +1,15 @@
 {
   "version": 2,
-  "functions": {
-    "api/edge.js": {
-      "maxDuration": 30
+  "builds": [
+    {
+      "src": "index.js",
+      "use": "@vercel/node"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/api/edge.js"
+      "dest": "/index.js"
     }
   ],
   "env": {
