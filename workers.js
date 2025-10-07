@@ -22,7 +22,7 @@ async function handleRequest(request) {
     });
   }
 
-  const response = await tryFetch('haji-mix.up.railway.app');
+  const response = await tryFetch('haji-mix-api.onrender.com');
   const resHeaders = new Headers(response.headers);
   resHeaders.set('Access-Control-Allow-Origin', '*');
   return new Response(await response.arrayBuffer(), {
